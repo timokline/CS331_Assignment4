@@ -280,7 +280,12 @@ function parse_simple_stmt()
 
     elseif matchString("return") then
         -- TODO: WRITE THIS!!!                                              @
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
 
+        return true, { RETURN_STMT, ast1 }
     else
         -- TODO: WRITE THIS!!!                                              @
 
@@ -371,7 +376,6 @@ function parse_write_arg()
     savelex = lexstr
     if matchCat(lexit.STRLIT) then
         return true, { STRLIT_OUT, savelex }
-            -- TODO: WRITE THIS!!!
     elseif matchCat(lexit.KEY) then
         if (savelex == "cr") then
             return true, { CR_OUT }
