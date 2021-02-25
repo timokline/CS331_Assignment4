@@ -371,7 +371,35 @@ function parse_write_arg()
     savelex = lexstr
     if matchCat(lexit.STRLIT) then
         return true, { STRLIT_OUT, savelex }
+            -- TODO: WRITE THIS!!!
+    elseif matchCat(lexit.KEY) then
+        if matchString("cr") then
+            return true, { CR_OUT }
+        elseif matchString("dq") then
+            return true, { DQ_OUT }
+        elseif matchString("char") then
+            if not matchString("(") then
+                return false, nil
+            end
 
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
+            end
+
+            if not matchString(")") then
+                return false, nil
+            end
+
+            return true, { CHAR_CALL, ast1 }
+        end
+    else
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+
+        return true, { ast1 }
     end
 end
 

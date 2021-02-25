@@ -14,7 +14,7 @@ parseit = require "parseit"  -- Import parseit module
 -- * YOU MAY WISH TO CHANGE THE FOLLOWING LINE *
 -- *********************************************
 
-EXIT_ON_FIRST_FAILURE = true
+EXIT_ON_FIRST_FAILURE = false
 -- If EXIT_ON_FIRST_FAILURE is true, then this program exits after the
 -- first failing test. If it is false, then this program executes all
 -- tests, reporting success/failure for each.
