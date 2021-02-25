@@ -373,11 +373,11 @@ function parse_write_arg()
         return true, { STRLIT_OUT, savelex }
             -- TODO: WRITE THIS!!!
     elseif matchCat(lexit.KEY) then
-        if matchString("cr") then
+        if (savelex == "cr") then
             return true, { CR_OUT }
-        elseif matchString("dq") then
+        elseif (savelex == "dq") then
             return true, { DQ_OUT }
-        elseif matchString("char") then
+        elseif (savelex == "char") then
             if not matchString("(") then
                 return false, nil
             end
