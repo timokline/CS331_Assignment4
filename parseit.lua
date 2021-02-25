@@ -288,6 +288,9 @@ function parse_simple_stmt()
         return true, { RETURN_STMT, ast1 }
     else
         -- TODO: WRITE THIS!!!                                              @
+        savelex = lexstr
+        -- if matchCat(lexit.ID) then
+
 
     end
 end
@@ -301,9 +304,37 @@ function parse_complex_stmt()
 
     if matchString("def") then
         -- TODO: WRITE THIS!!!                                                    @
+        savelex = lexstr -- NOTE-TO-SELF: Saves the supposed string form of the ID lexeme
+        if not matchCat(lexit.ID) then
+            return false, nil
+        end
+
+        if not matchString("(") then
+            return false, nil
+        end
+
+        if not matchString(")") then
+            return false, nil
+        end
+
+        if matchString("{") then
+            good, ast1 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end
+
+            if not matchString("}") then
+                return false, nil
+            end
+
+            return true, { FUNC_DEF, savelex, ast1 }
+        else
+            return false, nil
+        end
 
     elseif matchString("if") then
         -- TODO: WRITE THIS!!!                                                    @
+        savelex = lexstr
 
     elseif matchString("for") then
         if not matchString("(") then
