@@ -334,7 +334,81 @@ function parse_complex_stmt()
 
     elseif matchString("if") then
         -- TODO: WRITE THIS!!!                                                    @
-        savelex = lexstr
+        --savelex = lexstr
+        if not matchString("(") then
+            return false, nil
+        end
+
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+
+        if not matchString (")") then
+            return false, nil
+        end
+
+        if not matchString ("{") then
+            return false, nil
+        end
+
+        good, ast2 = parse_stmt_list()
+        if not good then
+            return false, nil
+        end
+
+        if matchString ("}") then
+            ast3 = { IF_STMT, ast1, ast2 }
+        else
+            return false, nil
+        end
+
+        while matchString("elseif") do
+            if not matchString("(") then
+                return false, nil
+            end
+    
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
+            end
+    
+            if not matchString ("{") then
+                return false, nil
+            end
+    
+            good, ast2 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end
+
+            if matchString ("}") then
+                -- TODO: Check syntax when internet comes back on
+                table.insert(ast3, ast1)
+                table.insert(ast3, ast2)
+            else
+                return false, nil
+            end
+        end
+
+        if matchString("else") then
+            if not matchString("{") then
+                return false, nil
+            end
+
+            good, ast2 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end
+
+            if matchString("}") then
+                table.insert (ast3, ast2)
+            else
+                return false, nil
+            end
+        end
+
+        return true, ast3
 
     elseif matchString("for") then
         if not matchString("(") then
