@@ -247,6 +247,7 @@ end
 function parse_simple_stmt()
     local good, ast1, ast2, savelex, arrayflag
 
+    savelex = lexstr
     if matchString("write") then
         if not matchString("(") then
             return false, nil
@@ -292,6 +293,11 @@ function parse_simple_stmt()
         if not good then
             return false, nil
         end
+        -- NOTE-TO-SELF:
+        -- 3 scenarios from parse_factor
+        --      1. FUNC_CALL, "foo" -> w/o =
+        --      2. ARRAY_VAR, "foo", expr -> w/ =
+        --      3. SIMPLE_VAR, "foo" -> w/ =
 
         if matchString("=") then
             good, ast2 = parse_expr()
@@ -300,6 +306,14 @@ function parse_simple_stmt()
             end
 
             ast1 = { ASSN_STMT, ast1, ast2 }
+            return true, ast1
+        end
+
+        --second check for bad functions
+        if ast1[1] == SIMPLE_VAR then
+            if not matchString("=") then
+                return false, nil
+            end
         end
 
         return true, ast1
@@ -487,7 +501,7 @@ end
 -- Parsing function for nonterminal "write_arg".
 -- Function init must be called before this function is called.
 function parse_write_arg()
-    local savelex, good, ast1
+    local savelex, good, ast
 
     savelex = lexstr
     if matchCat(lexit.STRLIT) then
@@ -502,7 +516,7 @@ function parse_write_arg()
                 return false, nil
             end
 
-            good, ast1 = parse_expr()
+            good, ast = parse_expr()
             if not good then
                 return false, nil
             end
@@ -511,15 +525,15 @@ function parse_write_arg()
                 return false, nil
             end
 
-            return true, { CHAR_CALL, ast1 }
+            return true, { CHAR_CALL, ast }
         end
     else
-        good, ast1 = parse_expr()
+        good, ast = parse_expr()
         if not good then
             return false, nil
         end
 
-        return true, { ast1 }
+        return true, ast
     end
 end
 
@@ -533,9 +547,9 @@ end
 -- → compare_expr { ( ‘and’ | ‘or’ ) compare_expr }
 function parse_expr()
     -- TEST TEST TEST!!!
-    local good, ast1, ast2, savelex
+    local good, ast, newast, savelex
 
-    good, ast1 = parse_compare_expr()
+    good, ast = parse_compare_expr()
     if not good then
         return false, nil
     end
@@ -547,12 +561,12 @@ function parse_expr()
             break
         end
 
-        good, ast2 = parse_compare_expr()
+        good, newast = parse_compare_expr()
         if not good then
             return false, nil
         end
 
-        ast1 = { { BIN_OP, lexstr }, ast1, ast2 }
+        ast = { { BIN_OP, savelex }, ast, newast }
     end
 
     return true, ast
@@ -565,9 +579,9 @@ end
 -- → arith_expr { ( ‘==’ | ‘!=’ | ‘<’ | ‘<=’ | ‘>’ | ‘>=’ ) arith_expr }
 function parse_compare_expr()
     -- TEST TEST TEST!!!
-    local good, ast1, ast2, saveop
+    local good, ast, newast, saveop
 
-    good, ast1 = parse_arith_expr()
+    good, ast = parse_arith_expr()
     if not good then
         return false, nil
     end
@@ -583,15 +597,15 @@ function parse_compare_expr()
             break
         end
 
-        good, ast2 = parse_arith_expr()
+        good, newast = parse_arith_expr()
         if not good then
             return false, nil
         end
 
-        ast1 = { { BIN_OP, saveop }, ast1, ast2 }
+        ast = { { BIN_OP, saveop }, ast, newast }
     end
 
-    return true, ast1
+    return true, ast
 end
 
 
@@ -601,9 +615,9 @@ end
 -- → term { ( ‘+’ | ‘-’ ) term }
 function parse_arith_expr()
     -- TODO: TEST TEST TEST!!!
-    local good, savelex, saveop, ast1, ast2
+    local good, saveop, ast, newast
 
-    good, ast1 = parse_term()
+    good, ast = parse_term()
     if not good then
         return false, nil
     end
@@ -615,13 +629,15 @@ function parse_arith_expr()
             break
         end
 
-        good, ast2 = parse_term()
+        good, newast = parse_term()
         if not good then
             return false, nil
         end
 
-        ast1 = { { BIN_OP, saveop }, ast1, ast2 }
+        ast = { { BIN_OP, saveop }, ast, newast }
     end
+
+    return true, ast
 end
 
 
@@ -631,9 +647,9 @@ end
 -- → factor { ( ‘*’ | ‘/’ | ‘%’ ) factor }
 function parse_term()
     -- TODO: TEST TEST TEST!!!
-    local good, ast1, ast2, savelex, saveop
+    local good, ast, newast, saveop
     
-    good, ast1 = parse_factor()
+    good, ast = parse_factor()
     if not good then
         return false, nil
     end
@@ -646,12 +662,12 @@ function parse_term()
             break
         end
 
-        good, ast2 = parse_factor()
+        good, newast = parse_factor()
         if not good then
             return false, nil
         end
 
-        ast1 = { { BIN_OP, saveop}, ast1, ast2 }
+        ast = { { BIN_OP, saveop }, ast, newast }
     end
 
     return true, ast
@@ -662,7 +678,7 @@ end
 -- Parsing function for nonterminal "factor".
 -- Function init must be called before this function is called.
 --[[
-    →  DONE ‘(’ expr ‘)’ 
+    →  DONE ‘(’ expr ‘)’
     |  DONE ( ‘+’ | ‘-’ | ‘not’ ) factor --CHECK FOR BUGS
     |  DONE NUMLIT
     |  DONE ( ‘true’ | ‘false’ )
@@ -671,11 +687,12 @@ end
 ]]
 function parse_factor()
     -- TODO: TEST TEST TEST!!!
-    local good, ast1, savelex
+    local good, ast, savelex
 
     savelex = lexstr
+    -- ‘(’ expr ‘)’
     if matchString("(") then
-        good, ast1 = parse_expr()
+        good, ast = parse_expr()
         if not good then
             return false, nil
         end
@@ -684,31 +701,29 @@ function parse_factor()
             return false, nil
         end
 
-        return true, ast1
-    elseif matchCat(lexit.OP) then
-        if savelex == "+" or
-            savelex == "-" then
-                good, ast1 = parse_factor()
-                if not good then
-                    return false, nil
-                end
+        return true, ast
 
-                return true, { UN_OP, savelex, ast1 }
-        else
-            return false, nil
-        end
-    elseif savelex == "not" then
-        good, ast1 = parse_factor()
-        if not good then
-            return false, nil
-        end
+    -- ( ‘+’ | ‘-’ | ‘not’ ) factor
+    elseif matchString("+") or
+        matchString("-") or
+        matchString("not") then
+            good, ast = parse_factor()
+            if not good then
+                return false, nil
+            end
 
-        return true, { UN_OP, savelex }
+            return true, { { UN_OP, savelex }, ast }
+
+    -- NUMLIT
     elseif matchCat(lexit.NUMLIT) then
         return true, { NUMLIT_VAL, savelex }
-    elseif savelex == "true" or                 --CHECK FOR BUGS LATER
-            savelex == "false" then
-                return true, { BOOLLIT_VAL, savelex }
+    -- ( ‘true’ | ‘false’ )
+
+    elseif matchString("true") or                 --CHECK FOR BUGS LATER
+        matchString("false") then
+            return true, { BOOLLIT_VAL, savelex }
+
+    -- ‘readnum’ ‘(’ ‘)’
     elseif matchString("readnum") then
         if matchString("(") then
             if matchString (")") then
@@ -719,6 +734,8 @@ function parse_factor()
         else
             return false, nil
         end
+
+    -- ID [ ‘(’ ‘)’ | ‘[’ expr ‘]’ ]
     elseif matchCat(lexit.ID) then
         if matchString ("(") then
             if matchString (")") then
@@ -727,13 +744,13 @@ function parse_factor()
                 return false, nil
             end
         elseif matchString("[") then
-            good, ast1 = parse_expr()
+            good, ast = parse_expr()
             if not good then
                 return false, nil
             end
 
             if matchString("]") then
-                return true, { ARRAY_VAR, savelex, ast1 }
+                return true, { ARRAY_VAR, savelex, ast }
             else
                 return false, nil
             end
