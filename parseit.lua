@@ -5,7 +5,7 @@
 -- AUTH: Timothy Albert Kline
 --       Glenn G. Chappell
 -- STRT: 17 February 2021
--- UPDT:
+-- UPDT: 25 February 2021
 -- VERS: 1.0 (based on the original parseit.lua)
 --
 -- For CS F331 / CSCE A331 Spring 2021
@@ -280,43 +280,55 @@ function parse_simple_stmt()
         return true, ast2
 
     elseif matchString("return") then
-        -- TODO: TEST TEST TEST TEST!!!                                              @
         good, ast1 = parse_expr()
         if not good then
             return false, nil
         end
 
         return true, { RETURN_STMT, ast1 }
-    else
-        -- TODO: WRITE THIS!!!                                              @
-        good, ast1 = parse_factor()
-        if not good then
-            return false, nil
-        end
-        -- NOTE-TO-SELF:
-        -- 3 scenarios from parse_factor
-        --      1. FUNC_CALL, "foo" -> w/o =
-        --      2. ARRAY_VAR, "foo", expr -> w/ =
-        --      3. SIMPLE_VAR, "foo" -> w/ =
-
-        if matchString("=") then
-            good, ast2 = parse_expr()
+    elseif matchCat(lexit.ID) then
+        if matchString ("(") then
+            if matchString (")") then
+                ast1 = { FUNC_CALL, savelex }
+            else
+                return false, nil
+            end
+        elseif matchString("[") then
+            good, arrayflag = parse_expr()
             if not good then
                 return false, nil
             end
 
-            ast1 = { ASSN_STMT, ast1, ast2 }
-            return true, ast1
-        end
+            if not matchString("]") then
+                return false, nil
+            end
 
-        --second check for bad functions
-        if ast1[1] == SIMPLE_VAR then
-            if not matchString("=") then
+            if matchString("=") then
+                good, ast2 = parse_expr()
+                if not good then
+                    return false, nil
+                end
+
+                ast1 = { ASSN_STMT, { ARRAY_VAR, savelex, arrayflag }, ast2 }
+            else
+                return false, nil
+            end
+        else
+            if matchString("=") then
+                good, ast2 = parse_expr()
+                if not good then
+                    return false, nil
+                end
+
+                ast1 = { ASSN_STMT, { SIMPLE_VAR, savelex }, ast2 }
+            else
                 return false, nil
             end
         end
 
         return true, ast1
+    else
+        return false, nil
     end
 end
 
@@ -328,7 +340,6 @@ function parse_complex_stmt()
     local good, ast1, ast2, ast3, ast4, savelex
 
     if matchString("def") then
-        -- TODO: TEST TEST TEST TEST!!!                                                    @
         savelex = lexstr -- NOTE-TO-SELF: Saves the supposed string form of the ID lexeme
         if not matchCat(lexit.ID) then
             return false, nil
@@ -356,10 +367,11 @@ function parse_complex_stmt()
         else
             return false, nil
         end
-
+    -- Note-To-Self:
+    --  	‘if’ ‘(’ expr ‘)’ ‘{’ stmt_list ‘}’
+    --          { ‘elseif’ ‘(’ expr ‘)’ ‘{’ stmt_list ‘}’ }
+    --          [ ‘else’ ‘{’ stmt_list ‘}’ ]
     elseif matchString("if") then
-        -- TODO: TEST TEST TEST TEST!!!                                                    @
-        --savelex = lexstr
         if not matchString("(") then
             return false, nil
         end
@@ -388,13 +400,21 @@ function parse_complex_stmt()
             return false, nil
         end
 
-        while matchString("elseif") do
+        while true do
+            if not matchString("elseif") then
+                break
+            end
+
             if not matchString("(") then
                 return false, nil
             end
 
             good, ast1 = parse_expr()
             if not good then
+                return false, nil
+            end
+
+            if not matchString(")") then
                 return false, nil
             end
 
@@ -408,7 +428,6 @@ function parse_complex_stmt()
             end
 
             if matchString ("}") then
-                -- TODO: Check syntax when internet comes back on
                 table.insert(ast3, ast1)
                 table.insert(ast3, ast2)
             else
@@ -546,7 +565,6 @@ end
 -- Function init must be called before this function is called.
 -- → compare_expr { ( ‘and’ | ‘or’ ) compare_expr }
 function parse_expr()
-    -- TEST TEST TEST!!!
     local good, ast, newast, savelex
 
     good, ast = parse_compare_expr()
@@ -578,7 +596,6 @@ end
 -- Function init must be called before this function is called.
 -- → arith_expr { ( ‘==’ | ‘!=’ | ‘<’ | ‘<=’ | ‘>’ | ‘>=’ ) arith_expr }
 function parse_compare_expr()
-    -- TEST TEST TEST!!!
     local good, ast, newast, saveop
 
     good, ast = parse_arith_expr()
@@ -614,7 +631,6 @@ end
 -- Function init must be called before this function is called.
 -- → term { ( ‘+’ | ‘-’ ) term }
 function parse_arith_expr()
-    -- TODO: TEST TEST TEST!!!
     local good, saveop, ast, newast
 
     good, ast = parse_term()
@@ -646,9 +662,8 @@ end
 -- Function init must be called before this function is called.
 -- → factor { ( ‘*’ | ‘/’ | ‘%’ ) factor }
 function parse_term()
-    -- TODO: TEST TEST TEST!!!
     local good, ast, newast, saveop
-    
+
     good, ast = parse_factor()
     if not good then
         return false, nil
@@ -678,15 +693,15 @@ end
 -- Parsing function for nonterminal "factor".
 -- Function init must be called before this function is called.
 --[[
-    →  DONE ‘(’ expr ‘)’
-    |  DONE ( ‘+’ | ‘-’ | ‘not’ ) factor --CHECK FOR BUGS
-    |  DONE NUMLIT
-    |  DONE ( ‘true’ | ‘false’ )
-    |  DONE ‘readnum’ ‘(’ ‘)’
-    |  DONE ID [ ‘(’ ‘)’ | ‘[’ expr ‘]’ ]
+    Note-To-Self:
+    →  ~DONE~ ‘(’ expr ‘)’
+    |  ~DONE~ ( ‘+’ | ‘-’ | ‘not’ ) factor --CHECK FOR BUGS
+    |  ~DONE~ NUMLIT
+    |  ~DONE~ ( ‘true’ | ‘false’ )
+    |  ~DONE~ ‘readnum’ ‘(’ ‘)’
+    |  ~DONE~ ID [ ‘(’ ‘)’ | ‘[’ expr ‘]’ ]
 ]]
 function parse_factor()
-    -- TODO: TEST TEST TEST!!!
     local good, ast, savelex
 
     savelex = lexstr
@@ -719,7 +734,7 @@ function parse_factor()
         return true, { NUMLIT_VAL, savelex }
     -- ( ‘true’ | ‘false’ )
 
-    elseif matchString("true") or                 --CHECK FOR BUGS LATER
+    elseif matchString("true") or
         matchString("false") then
             return true, { BOOLLIT_VAL, savelex }
 
