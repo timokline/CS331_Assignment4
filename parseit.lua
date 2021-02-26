@@ -288,11 +288,21 @@ function parse_simple_stmt()
         return true, { RETURN_STMT, ast1 }
     else
         -- TODO: WRITE THIS!!!                                              @
-        savelex = lexstr
-        --if matchCat(lexit.ID) then
-            --if
+        good, ast1 = parse_factor()
+        if not good then
+            return false, nil
+        end
 
+        if matchString("=") then
+            good, ast2 = parse_expr()
+            if not good then
+                return false, nil
+            end
 
+            ast1 = { ASSN_STMT, ast1, ast2 }
+        end
+
+        return true, ast1
     end
 end
 
@@ -514,12 +524,38 @@ function parse_write_arg()
 end
 
 
+-- And the AST for the expr ‘1 and 2 or 3’ is
+-- {{BIN_OP, "or"}, {{BIN_OP, "and"},
+-- {NUMLIT_VAL, "1"}, {NUMLIT_VAL, "2"}}, {NUMLIT_VAL, "3"}}.
 -- parse_expr
 -- Parsing function for nonterminal "expr".
 -- Function init must be called before this function is called.
 -- → compare_expr { ( ‘and’ | ‘or’ ) compare_expr }
 function parse_expr()
-    -- TODO: WRITE THIS!!!
+    -- TEST TEST TEST!!!
+    local good, ast1, ast2, savelex
+
+    good, ast1 = parse_compare_expr()
+    if not good then
+        return false, nil
+    end
+
+    while true do
+        savelex = lexstr
+        if not matchString("and") and
+        not matchString("or") then
+            break
+        end
+
+        good, ast2 = parse_compare_expr()
+        if not good then
+            return false, nil
+        end
+
+        ast1 = { { BIN_OP, lexstr }, ast1, ast2 }
+    end
+
+    return true, ast
 end
 
 
@@ -528,7 +564,34 @@ end
 -- Function init must be called before this function is called.
 -- → arith_expr { ( ‘==’ | ‘!=’ | ‘<’ | ‘<=’ | ‘>’ | ‘>=’ ) arith_expr }
 function parse_compare_expr()
-    -- TODO: WRITE THIS!!!                                                    @
+    -- TEST TEST TEST!!!
+    local good, ast1, ast2, saveop
+
+    good, ast1 = parse_arith_expr()
+    if not good then
+        return false, nil
+    end
+
+    while true do
+        saveop = lexstr
+        if not matchString("==") and -- PROBABLY WRONG: Fix after tests
+        not matchString("!=") and
+        not matchString("<=") and
+        not matchString(">=") and
+        not matchString("<") and
+        not matchString(">") then
+            break
+        end
+
+        good, ast2 = parse_arith_expr()
+        if not good then
+            return false, nil
+        end
+
+        ast1 = { { BIN_OP, saveop }, ast1, ast2 }
+    end
+
+    return true, ast1
 end
 
 
@@ -557,7 +620,7 @@ function parse_arith_expr()
             return false, nil
         end
 
-        ast1 = { { BIN_OP, saveop }, ast1, ast2}
+        ast1 = { { BIN_OP, saveop }, ast1, ast2 }
     end
 end
 
